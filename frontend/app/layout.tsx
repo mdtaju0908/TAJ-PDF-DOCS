@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Toaster } from "sonner";
 import { ProcessingOverlay } from "@/components/ProcessingOverlay";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 
@@ -43,13 +44,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
-        <Navbar />
-        <main className="min-h-[70vh]">{children}</main>
-        <Footer />
-        <Toaster richColors position="top-right" />
-        <ProcessingOverlay />
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-50">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Navbar />
+          <main className="min-h-[70vh]">{children}</main>
+          <Footer />
+          <Toaster richColors position="top-right" />
+          <ProcessingOverlay />
+        </ThemeProvider>
       </body>
     </html>
   );

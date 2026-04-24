@@ -1,35 +1,76 @@
-# 🚀 TAJ PDF Docs
+<p align="center">
+  <img src="./frontend/public/favicon.svg" alt="TAJ AI Logo" width="120" height="120" />
+</p>
 
-**TAJ PDF Docs** is a powerful, full-stack PDF processing web application built with a modern architecture. It provides a wide range of tools to **compress, convert, edit, merge, split, OCR, and manage PDFs** efficiently.
+<h1 align="center">TAJ PDF DOCS</h1>
 
----
-
-## 📌 Features
-
-### 🛠 Core PDF Tools
-- 📉 Compress PDF
-- 🔄 Convert (PDF ↔ Word, Excel, PPT, HTML)
-- ✂️ Split PDF
-- 🔗 Merge PDF
-- ✏️ Edit PDF
-- 🔍 OCR (Extract text from images/PDF)
-- 🔐 Protect / Unlock PDF
-- 🖊 Sign PDF
-- 🧹 Organize & Repair PDF
-- 🧾 Scan to PDF
+**All-in-One PDF Tools Platform**
+Fast, secure, and easy-to-use tools to manage your documents in seconds.
 
 ---
 
-### 🌟 Advanced Features
-- 📦 Cloud Storage Integration (AWS S3)
-- ⚡ Fast API-based processing
-- 🔒 Secure file handling
-- 📊 Dashboard (Recent, Favorites, Security)
-- 🎯 Modular & Scalable Architecture
-- 💎 Premium-ready UI components
+## 🚀 Features
+
+* 🔗 Merge PDF files
+* ✂️ Split PDF documents
+* 🗜️ Compress PDFs
+* 🔄 Convert (PDF ↔ DOCX, PPTX, JPG, PNG)
+* 🔒 Protect & Unlock PDFs
+* 🧹 Background Remover
+* 📑 Organize & Rotate pages
+* 🌐 HTML to PDF
 
 ---
-### 📄 License
 
-All Rights Reserved
-Copyright (c) 2026 Md Taju
+## ⚡ Why TAJ PDF Docs?
+
+* No signup required
+* Clean & simple UI
+* Fast processing
+* Privacy-first approach
+* Cloud-native workflows
+
+---
+
+## 🛠️ Tech Stack
+
+* Frontend: Next.js, TypeScript, CSS, JavaScript
+* Backend: Python
+* Databse: Mangodb
+* Cloud: AWS S3
+
+---
+
+## 📸 Screenshots
+<img width="1114" height="891" alt="image" src="https://github.com/user-attachments/assets/90ad36fd-50c7-486a-8074-6ddd9eb23ab7" />
+
+---
+
+## 👨‍💻 About the Developer
+
+**Er. Md Taju**
+> B.Tech (CSE - AI & ML) student at Vivekananda Global University (VGU), Jaipur.
+
+* 💡 Aspiring Software Engineer
+* 🤖 AI/ML Enthusiast
+* ☁️ AWS & Cloud Computing
+* 🌐 Web Developer
+
+Originally from **Samastipur, Bihar**, he builds real-world projects and shares his learning journey with the community.
+
+---
+
+## 🌐 Portfolio
+
+👉 https://mdtaju.tech
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+## ❤️ Support
+
+If you like this project, give it a ⭐ on GitHub!
+
+---

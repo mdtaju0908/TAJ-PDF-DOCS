@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { type PdfToolId, getToolDefinition } from "@/lib/tools";
+import { TOOL_DEFINITIONS, type PdfToolId, getToolDefinition } from "@/lib/tools";
 import { UploadBox } from "@/components/UploadBox";
 import { PremiumPreview } from "@/components/PremiumPreview";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,7 @@ export function PdfToolTemplate({ toolId }: PdfToolTemplateProps) {
   const setUploadedFiles = useAppStore(s => s.setUploadedFiles);
   const setProcessing = useAppStore(s => s.setProcessing);
   const processingState = useAppStore(s => s.processingState);
+  const hasFiles = files.length > 0;
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
   const [pageSize, setPageSize] = useState<string>("A4 (297x210 mm)");
@@ -48,6 +49,52 @@ export function PdfToolTemplate({ toolId }: PdfToolTemplateProps) {
     }
     return parts.join(",");
   }, [tool.accept]);
+
+  const sourceFormatLabel = useMemo(() => {
+    const firstExt = Object.values(tool.accept).flat()[0];
+    if (!firstExt) return "FILE";
+    return firstExt.replace(".", "").toUpperCase();
+  }, [tool.accept]);
+
+  const targetFromTitle = useMemo(() => {
+    const lowerTitle = tool.title.toLowerCase();
+    if (!lowerTitle.includes(" to ")) return null;
+    const rawTarget = tool.title.split(/to/i)[1]?.trim() ?? "";
+    const normalized = rawTarget.toLowerCase();
+    if (!rawTarget) return null;
+    if (normalized.includes("pdf/a")) return "PDF/A";
+    if (normalized.includes("pdf")) return "PDF";
+    if (normalized.includes("powerpoint")) return "PPTX";
+    if (normalized.includes("word")) return "DOCX";
+    if (normalized.includes("excel")) return "XLSX";
+    if (normalized.includes("jpg") || normalized.includes("jpeg")) return "JPG";
+    if (normalized.includes("png")) return "PNG";
+    return rawTarget.toUpperCase();
+  }, [tool.title]);
+
+  const targetFormatLabel = useMemo(() => {
+    if (tool.outputType) return tool.outputType.toUpperCase();
+    if (targetFromTitle) return targetFromTitle;
+    if (tool.title.toLowerCase().includes(" to ") && tool.title.toLowerCase().includes("pdf")) return "PDF";
+    if (tool.extensionLabel && tool.title.toLowerCase().startsWith("pdf to")) {
+      return tool.extensionLabel.toUpperCase();
+    }
+    return "PDF";
+  }, [targetFromTitle, tool.extensionLabel, tool.outputType, tool.title]);
+
+  const sourcePrompt = useMemo(() => {
+    return sourceFormatLabel === "FILE" ? "file" : sourceFormatLabel;
+  }, [sourceFormatLabel]);
+
+  const guideHighlights = useMemo(
+    () => [tool.actionLabel, "Secure Processing", "No Login", "Fast Output", "Any Device"],
+    [tool.actionLabel]
+  );
+
+  const exploreTools = useMemo(
+    () => TOOL_DEFINITIONS.filter(item => item.id !== tool.id).slice(0, 8),
+    [tool.id]
+  );
 
   function renderPanel() {
     if (!files.length) return null;
@@ -171,15 +218,21 @@ export function PdfToolTemplate({ toolId }: PdfToolTemplateProps) {
           </h1>
           <p className="max-w-xl text-sm text-slate-600 md:text-base">{tool.description}</p>
         </div>
-        <div className="grid gap-10 lg:grid-cols-2">
-          <div className="space-y-4">
+        <div className={cn("grid gap-10", hasFiles ? "lg:grid-cols-2" : "grid-cols-1")}>
+          <div className={cn("space-y-4", !hasFiles && "mx-auto w-full max-w-3xl")}>
             <UploadBox
               onFilesSelected={accepted => setUploadedFiles([...(files ?? []), ...accepted])}
               accept={tool.accept}
               multiple
               busy={processingState.isProcessing}
+              headline={`Select a ${sourcePrompt}`}
+              subline={`Upload one ${sourcePrompt} to get ${targetFormatLabel}.`}
+              ctaLabel={`Select ${sourcePrompt}`}
+              variant="tool"
+              sourceFormatLabel={sourceFormatLabel}
+              targetFormatLabel={targetFormatLabel}
             />
-            {files.length > 0 && (
+            {hasFiles && (
               <div className="mt-2 grid grid-cols-2 gap-6 md:grid-cols-2">
                 {files.map((file, index) => (
                   <PremiumPreview
@@ -217,187 +270,282 @@ export function PdfToolTemplate({ toolId }: PdfToolTemplateProps) {
               </button>
             </div>
           </div>
-          <div className="space-y-4">
-            {renderPanel()}
-            <div className="space-y-3 rounded-2xl bg-white p-5 shadow-sm">
-              {tool.allowOrientation && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-medium text-slate-800">Page orientation</h4>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 rounded-lg border px-3 py-2 text-xs",
-                        orientation === "portrait"
-                          ? "border-red-500 bg-rose-50 text-rose-700"
-                          : "border-slate-200 text-slate-600"
-                      )}
-                      onClick={() => setOrientation("portrait")}
-                    >
-                      Portrait
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 rounded-lg border px-3 py-2 text-xs",
-                        orientation === "landscape"
-                          ? "border-red-500 bg-rose-50 text-rose-700"
-                          : "border-slate-200 text-slate-600"
-                      )}
-                      onClick={() => setOrientation("landscape")}
-                    >
-                      Landscape
-                    </button>
+          {hasFiles && (
+            <div className="space-y-4">
+              {renderPanel()}
+              <div className="space-y-3 rounded-2xl bg-white p-5 shadow-sm">
+                {tool.allowOrientation && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-slate-800">Page orientation</h4>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2 text-xs",
+                          orientation === "portrait"
+                            ? "border-red-500 bg-rose-50 text-rose-700"
+                            : "border-slate-200 text-slate-600"
+                        )}
+                        onClick={() => setOrientation("portrait")}
+                      >
+                        Portrait
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2 text-xs",
+                          orientation === "landscape"
+                            ? "border-red-500 bg-rose-50 text-rose-700"
+                            : "border-slate-200 text-slate-600"
+                        )}
+                        onClick={() => setOrientation("landscape")}
+                      >
+                        Landscape
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-              {tool.allowPageSize && (
-                <div className="space-y-2 text-xs">
-                  <h4 className="font-medium text-slate-800">Page size</h4>
-                  <select
-                    className="w-full rounded-lg border border-slate-200 p-2 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-200"
-                    value={pageSize}
-                    onChange={e => setPageSize(e.target.value)}
-                  >
-                    <option value="A4 (297x210 mm)">A4 (297x210 mm)</option>
-                    <option value="Letter">Letter</option>
-                    <option value="Legal">Legal</option>
-                  </select>
-                </div>
-              )}
-              {tool.allowMargin && (
-                <div className="space-y-2 text-xs">
-                  <h4 className="font-medium text-slate-800">Margins</h4>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 rounded-lg border px-3 py-2",
-                        margin === "none"
-                          ? "border-red-500 bg-rose-50 text-rose-700"
-                          : "border-slate-200 text-slate-600"
-                      )}
-                      onClick={() => setMargin("none")}
+                )}
+                {tool.allowPageSize && (
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-medium text-slate-800">Page size</h4>
+                    <select
+                      className="w-full rounded-lg border border-slate-200 p-2 text-xs outline-none focus:border-red-400 focus:ring-1 focus:ring-red-200"
+                      value={pageSize}
+                      onChange={e => setPageSize(e.target.value)}
                     >
-                      No margin
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 rounded-lg border px-3 py-2",
-                        margin === "small"
-                          ? "border-red-500 bg-rose-50 text-rose-700"
-                          : "border-slate-200 text-slate-600"
-                      )}
-                      onClick={() => setMargin("small")}
-                    >
-                      Small
-                    </button>
-                    <button
-                      type="button"
-                      className={cn(
-                        "flex-1 rounded-lg border px-3 py-2",
-                        margin === "big"
-                          ? "border-red-500 bg-rose-50 text-rose-700"
-                          : "border-slate-200 text-slate-600"
-                      )}
-                      onClick={() => setMargin("big")}
-                    >
-                      Big
-                    </button>
+                      <option value="A4 (297x210 mm)">A4 (297x210 mm)</option>
+                      <option value="Letter">Letter</option>
+                      <option value="Legal">Legal</option>
+                    </select>
                   </div>
-                </div>
-              )}
-              {tool.allowBackgroundColor && (
-                <div className="space-y-2 text-xs">
-                  <h4 className="font-medium text-slate-800">Custom Background Color</h4>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={backgroundColor}
-                      onChange={(e) => setBackgroundColor(e.target.value)}
-                      className="h-8 w-12 cursor-pointer rounded border border-slate-200"
-                    />
-                    <input
-                      type="text"
-                      value={backgroundColor}
-                      onChange={(e) => setBackgroundColor(e.target.value)}
-                      className="flex-1 rounded-lg border border-slate-200 p-2 text-xs outline-none focus:border-indigo-400"
-                      placeholder="#ffffff"
-                    />
+                )}
+                {tool.allowMargin && (
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-medium text-slate-800">Margins</h4>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2",
+                          margin === "none"
+                            ? "border-red-500 bg-rose-50 text-rose-700"
+                            : "border-slate-200 text-slate-600"
+                        )}
+                        onClick={() => setMargin("none")}
+                      >
+                        No margin
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2",
+                          margin === "small"
+                            ? "border-red-500 bg-rose-50 text-rose-700"
+                            : "border-slate-200 text-slate-600"
+                        )}
+                        onClick={() => setMargin("small")}
+                      >
+                        Small
+                      </button>
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex-1 rounded-lg border px-3 py-2",
+                          margin === "big"
+                            ? "border-red-500 bg-rose-50 text-rose-700"
+                            : "border-slate-200 text-slate-600"
+                        )}
+                        onClick={() => setMargin("big")}
+                      >
+                        Big
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={handleConvert}
-                  disabled={processingState.isProcessing || files.length === 0}
-                  className={cn(
-                    "w-full rounded-xl px-6 py-3 text-sm font-medium text-white transition",
-                    "bg-gradient-to-r from-red-500 to-orange-500 hover:opacity-90",
-                    processingState.isProcessing && "opacity-70"
-                  )}
-                >
-                  {processingState.isProcessing
-                    ? "Processing..."
-                    : `Convert to ${tool.outputType?.toUpperCase() ?? "PDF"}`}
-                </button>
-                {resultUrl && (
+                )}
+                {tool.allowBackgroundColor && (
+                  <div className="space-y-2 text-xs">
+                    <h4 className="font-medium text-slate-800">Custom Background Color</h4>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="h-8 w-12 cursor-pointer rounded border border-slate-200"
+                      />
+                      <input
+                        type="text"
+                        value={backgroundColor}
+                        onChange={(e) => setBackgroundColor(e.target.value)}
+                        className="flex-1 rounded-lg border border-slate-200 p-2 text-xs outline-none focus:border-indigo-400"
+                        placeholder="#ffffff"
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="pt-1">
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (!resultUrl) return;
-                      try {
-                        const res = await fetch(resultUrl, { method: "GET" });
-                        if (!res.ok) throw new Error("Failed to fetch file");
-                        const blob = await res.blob();
-                        const cd = res.headers.get("content-disposition") || "";
-                        const nameMatch =
-                          /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
-                        const resolvedName =
-                          (nameMatch?.[1] && decodeURIComponent(nameMatch[1])) ||
-                          nameMatch?.[2] ||
-                          (tool.outputType ? `result.${tool.outputType}` : "result");
-                        const objectUrl = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = objectUrl;
-                        link.setAttribute("download", resolvedName);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(objectUrl);
-                      } catch (e) {
-                        toast.error("Unable to download file");
-                      }
-                    }}
-                    className="mt-3 w-full rounded-xl bg-green-600 px-6 py-3 text-center text-sm font-medium text-white"
+                    onClick={handleConvert}
+                    disabled={processingState.isProcessing || files.length === 0}
+                    className={cn(
+                      "w-full rounded-xl px-6 py-3 text-sm font-medium text-white transition",
+                      "bg-gradient-to-r from-red-500 to-orange-500 hover:opacity-90",
+                      processingState.isProcessing && "opacity-70"
+                    )}
                   >
-                    Download File
+                    {processingState.isProcessing
+                      ? "Processing..."
+                      : `Convert to ${tool.outputType?.toUpperCase() ?? "PDF"}`}
                   </button>
-                )}
-                <p className="mt-2 text-[11px] text-slate-500">
-                  Files transfer over encrypted connections. Processed anonymously and auto-deleted after use — no login required.
-                </p>
+                  {resultUrl && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!resultUrl) return;
+                        try {
+                          const res = await fetch(resultUrl, { method: "GET" });
+                          if (!res.ok) throw new Error("Failed to fetch file");
+                          const blob = await res.blob();
+                          const cd = res.headers.get("content-disposition") || "";
+                          const nameMatch =
+                            /filename\*=UTF-8''([^;]+)|filename="([^"]+)"/i.exec(cd);
+                          const resolvedName =
+                            (nameMatch?.[1] && decodeURIComponent(nameMatch[1])) ||
+                            nameMatch?.[2] ||
+                            (tool.outputType ? `result.${tool.outputType}` : "result");
+                          const objectUrl = URL.createObjectURL(blob);
+                          const link = document.createElement("a");
+                          link.href = objectUrl;
+                          link.setAttribute("download", resolvedName);
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          URL.revokeObjectURL(objectUrl);
+                        } catch (e) {
+                          toast.error("Unable to download file");
+                        }
+                      }}
+                      className="mt-3 w-full rounded-xl bg-green-600 px-6 py-3 text-center text-sm font-medium text-white"
+                    >
+                      Download File
+                    </button>
+                  )}
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    Files transfer over encrypted connections. Processed anonymously and auto-deleted after use — no login required.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
-        <aside className="max-w-xl space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Why teams trust TAJ PDF Docs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-xs text-slate-600">
-                <li>End-to-end encrypted uploads</li>
-                <li>No training needed, optimized for non-technical teams</li>
-                <li>Designed for legal, finance and operations workflows</li>
-                <li>Scales from individual contributors to global teams</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </aside>
+        <section className="rounded-3xl border border-indigo-100 bg-white/90 p-5 shadow-sm md:p-7">
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">
+            TAJ PDF DOCS Tool Guide
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
+            {tool.title} - Fast, Secure and Simple
+          </h2>
+          <p className="mt-2 text-sm text-slate-600 md:text-base">
+            {tool.description}
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {guideHighlights.map(highlight => (
+              <span
+                key={highlight}
+                className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700"
+              >
+                {highlight}
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-3">
+            <Card className="border-indigo-100">
+              <CardHeader>
+                <CardTitle className="text-base">How To Use</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-2 text-sm text-slate-700">
+                  <li>1. Upload your file in the upload area.</li>
+                  <li>2. Set options based on your requirement.</li>
+                  <li>3. Click &quot;{tool.actionLabel}&quot; to start.</li>
+                  <li>4. Download the processed file instantly.</li>
+                </ol>
+              </CardContent>
+            </Card>
+            <Card className="border-indigo-100">
+              <CardHeader>
+                <CardTitle className="text-base">Why This Tool</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-slate-700">
+                  <li>Clean workflow with minimal steps</li>
+                  <li>Stable output quality for documents</li>
+                  <li>Secure encrypted transfer in transit</li>
+                  <li>Works smoothly on desktop and mobile</li>
+                </ul>
+              </CardContent>
+            </Card>
+            <Card className="border-indigo-100">
+              <CardHeader>
+                <CardTitle className="text-base">Best For</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-slate-700">
+                  <li>Office, legal and academic documents</li>
+                  <li>Quick edits before sharing files</li>
+                  <li>Daily PDF workflow automation</li>
+                  <li>Bulk operations with simple controls</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            <h3 className="text-lg font-semibold text-slate-900">Quick FAQs</h3>
+            <details className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                Is this {tool.title.toLowerCase()} tool free to use?
+              </summary>
+              <p className="mt-2 text-sm text-slate-600">
+                Yes, you can process files without login for standard usage.
+              </p>
+            </details>
+            <details className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                Will my original file be changed?
+              </summary>
+              <p className="mt-2 text-sm text-slate-600">
+                No, original files remain unchanged. You get a new processed output file.
+              </p>
+            </details>
+            <details className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <summary className="cursor-pointer text-sm font-medium text-slate-900">
+                Is my uploaded data secure?
+              </summary>
+              <p className="mt-2 text-sm text-slate-600">
+                Files are transferred over encrypted connections and processed anonymously.
+              </p>
+            </details>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold text-slate-900">Explore More Tools</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {exploreTools.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => router.push(`/tools/${item.id}`)}
+                  className="rounded-full border border-indigo-200 bg-white px-4 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50"
+                >
+                  {item.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
